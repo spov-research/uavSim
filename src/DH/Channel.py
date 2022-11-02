@@ -1,17 +1,19 @@
+from dataclasses import dataclass
+
 import numpy as np
 from src.Map.Shadowing import load_or_create_shadowing
 
 
+@dataclass
 class ChannelParams:
-    def __init__(self):
-        self.cell_edge_snr = -25  # in dB
-        self.los_path_loss_exp = 2.27
-        self.nlos_path_loss_exp = 3.64
-        self.uav_altitude = 10.0  # in m
-        self.cell_size = 10.0  # in m
-        self.los_shadowing_variance = 2.0
-        self.nlos_shadowing_variance = 5.0
-        self.map_path = "res/downtown.png"
+    cell_edge_snr: float = -25  # in dB
+    los_path_loss_exp: float = 2.27
+    nlos_path_loss_exp: float = 3.64
+    uav_altitude: float = 10.0  # in m
+    cell_size: float = 10.0  # in m
+    los_shadowing_variance: float = 2.0
+    nlos_shadowing_variance: float = 5.0
+    map_path: str = "res/downtown.png"
 
 
 class Channel:
@@ -45,8 +47,8 @@ class Channel:
             ((device_pos[1] - uav_pos[1]) * self.params.cell_size) ** 2 +
             self.params.uav_altitude ** 2)
 
-        if self.total_shadow_map[int(round(device_pos[1])), int(round(device_pos[0])),
-                                 int(round(uav_pos[1])), int(round(uav_pos[0]))]:
+        if self.total_shadow_map[int(round(device_pos[0])), int(round(device_pos[1])),
+                                 int(round(uav_pos[0])), int(round(uav_pos[1]))]:
             snr = self.los_norm_factor * dist ** (
                 -self.params.nlos_path_loss_exp) * 10 ** (np.random.normal(0., self.nlos_shadowing_sigma) / 10)
         else:

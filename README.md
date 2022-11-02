@@ -32,21 +32,21 @@ Developed and tested only on Linux-based systems. In principle, it should also r
 Train a new DDQN model with the parameters of your choice in the specified config file for Coverage Path Planning (CPP) or Data Harvesting (DH):
 
 ```
-python main.py --cpp --gpu --config config/manhattan32_cpp.json --id manhattan32_cpp
-python main.py --dh --gpu --config config/manhattan32_dh.json --id manhattan32_dh
+python main.py --cpp --gpu config/manhattan32_cpp.json --id manhattan32_cpp
+python main.py --dh --gpu config/manhattan32_dh.json --id manhattan32_dh
 
 --cpp|--dh                  Activates CPP or DH
 --gpu                       Activates GPU acceleration for DDQN training
---config                    Path to config file in json format
+config                    Path to config file in json format
 --id                        Overrides standard name for logfiles and model
---generate_config           Enable only to write default config from default values in the code
+--generate           Enable only to write default config from default values in the code
 ```
 
 Evaluate a model through Monte Carlo analysis over the random parameter space for the performance indicators 'Successful Landing', 'Collection Ratio', 'Collection Ratio and Landed' as defined in the paper (plus 'Boundary Counter' counting safety controller activations), e.g. for 1000 Monte Carlo iterations:
 
 ```
-python main_mc.py --cpp --weights example/models/manhattan32_cpp --config config/manhattan32_cpp.json --id manhattan32_cpp_mc --samples 1000
-python main_mc.py --dh --weights example/models/manhattan32_dh --config config/manhattan32_dh.json --id manhattan32_dh_mc --samples 1000
+python main_mc.py --cpp --weights example/models/manhattan32_cpp config/manhattan32_cpp.json --id manhattan32_cpp_mc --samples 1000
+python main_mc.py --dh --weights example/models/manhattan32_dh config/manhattan32_dh.json --id manhattan32_dh_mc --samples 1000
 
 --cpp|--dh                  Activates CPP or DH
 --weights                   Path to weights of trained model

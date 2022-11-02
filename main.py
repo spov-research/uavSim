@@ -31,7 +31,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu', action='store_true', help='Activates usage of GPU')
     parser.add_argument('--generate_config', action='store_true', help='Enable to write default config only')
-    parser.add_argument('--config', default=None, help='Path to config file')
     parser.add_argument('--id', default=None, help='If set overrides the logfile name and the save name')
 
     parser.add_argument('--params', nargs='*', default=None)
@@ -39,6 +38,7 @@ if __name__ == "__main__":
     parser.add_argument('--cpp', action='store_true', help='Run Coverage Path Planning')
     parser.add_argument('--dh', action='store_true', help='Run Path Planning for Data Harvesting')
     parser.add_argument('--multi', action='store_true', help='Run Path Planning for Multi (So far only DH)')
+    parser.add_argument('config', default=None, help='Path to config file')
 
     args = parser.parse_args()
 

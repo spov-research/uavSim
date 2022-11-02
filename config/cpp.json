@@ -1,47 +1,10 @@
 {
-    "model_stats_params": {
-        "save_model": "models/save_model",
-        "moving_average_length": 200,
-        "log_file_name": "20201022-194431",
-        "training_images": false
-    },
-    "grid_params": {
-        "movement_range": [
-            100,
-            200
-        ],
-        "map_path": "res/manhattan32.png",
-        "generator_params": {
-            "shape": [
-                32,
-                32
-            ],
-            "coverage_range": [
-                0.2,
-                0.8
-            ],
-            "shape_range": [
-                1,
-                5
-            ]
-        }
-    },
-    "reward_params": {
-        "boundary_penalty": 1.0,
-        "empty_battery_penalty": 150.0,
-        "movement_penalty": 0.2,
-        "cell_multiplier": 0.4
-    },
-    "trainer_params": {
+    "trainer": {
+        "training_steps": 2000000,
         "batch_size": 128,
-        "num_steps": 1000,
-        "rm_pre_fill_ratio": 0.0,
-        "rm_pre_fill_random": true,
-        "eval_period": 5,
-        "rm_size": 50000,
-        "load_model": ""
-    },
-    "agent_params": {
+        "global_map_scaling": 3,
+        "local_map_size": 17,
+        "temperature": 0.1,
         "conv_layers": 2,
         "conv_kernel_size": 5,
         "conv_kernels": 16,
@@ -50,16 +13,38 @@
         "learning_rate": 3e-05,
         "alpha": 0.005,
         "gamma": 0.95,
-        "soft_max_scaling": 0.1,
-        "use_global_local": true,
-        "global_map_scaling": 3,
-        "local_map_size": 17,
-        "print_summary": false
+        "save_period": 10000,
+        "rm_size": 50000,
+        "rm_prefill": 25000
     },
-    "physics_params": {
-        "camera_params": {
-            "half_length": 2,
-            "map_path": "res/manhattan32.png"
+    "gym": {
+        "map_path": "res/manhattan32.png",
+        "budget_range": [
+            50,
+            150
+        ],
+        "boundary_penalty": 1.0,
+        "empty_battery_penalty": 150.0,
+        "movement_penalty": 0.2,
+        "cell_reward": 0.4,
+        "camera_half_length": 2,
+        "generator": {
+            "coverage_range": [
+                0.2,
+                0.5
+            ],
+            "shape_range": [
+                3,
+                8
+            ]
         }
+    },
+    "logger": {
+        "loss_period": 100,
+        "evaluation_period": 1000,
+        "save_period": 10000
+    },
+    "evaluator": {
+        "show_eval": false
     }
 }

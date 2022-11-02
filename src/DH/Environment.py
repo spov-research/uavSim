@@ -1,5 +1,5 @@
-from src.DDQN.Agent import DDQNAgentParams, DDQNAgent
-from src.DDQN.Trainer import DDQNTrainerParams, DDQNTrainer
+from src.trainer.Agent import DDQNAgentParams, DDQNAgent
+from src.trainer.Trainer import DDQNTrainerParams, DDQNTrainer
 from src.DH.Display import DHDisplay
 from src.DH.Grid import DHGridParams, DHGrid
 from src.DH.Physics import DHPhysicsParams, DHPhysics

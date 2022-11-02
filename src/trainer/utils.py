@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import numpy as np
 
 
@@ -15,20 +17,28 @@ def type_of(exp):
         return type(exp)
 
 
-class ReplayMemory(object):
+@dataclass
+class ReplayMemoryParams:
+    size: int = 50_000
+    cer: bool = True
+
+
+class ReplayMemory:
     """
     Replay memory class for RL
     """
 
-    def __init__(self, size):
+    def __init__(self, params: ReplayMemoryParams):
         self.k = 0
         self.head = -1
         self.full = False
-        self.size = size
+        self.size = params.size
         self.memory = None
+        self.cer = params.cer
 
     def initialize(self, experience):
         self.memory = [np.zeros(shape=[self.size] + shape(exp), dtype=type_of(exp)) for exp in experience]
+        print(f"Experience replay size {sum([n.size * n.itemsize for n in self.memory]) / 1e6} MB")
 
     def store(self, experience):
         if self.memory is None:
@@ -50,7 +60,9 @@ class ReplayMemory(object):
         if not self.full:
             r = self.k
         random_idx = np.random.choice(r, size=batch_size, replace=False)
-        random_idx[0] = self.head  # Always add the latest one
+
+        if self.cer:
+            random_idx[0] = self.head  # Always add the latest one
 
         return [mem[random_idx] for mem in self.memory]
 

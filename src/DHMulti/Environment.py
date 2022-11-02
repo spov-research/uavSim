@@ -1,7 +1,7 @@
 import copy
 
-from src.DDQN.Agent import DDQNAgentParams, DDQNAgent
-from src.DDQN.Trainer import DDQNTrainerParams, DDQNTrainer
+from src.trainer.Agent import DDQNAgentParams, DDQNAgent
+from src.trainer.Trainer import DDQNTrainerParams, DDQNTrainer
 from src.DH.Physics import DHPhysicsParams
 from src.DH.Rewards import DHRewardParams, DHRewards
 from src.DH.State import DHState

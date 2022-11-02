@@ -64,7 +64,7 @@ def cpp_mc(args, params: CPPEnvironmentParams):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', required=True, help='Path to weights')
-    parser.add_argument('--config', required=True, help='Config file for agent shaping')
+    parser.add_argument('config', required=True, help='Config file for agent shaping')
     parser.add_argument('--id', required=False, help='Id for exported files')
     parser.add_argument('--samples', required=True, help='Id for exported files')
     parser.add_argument('--seed', default=None, help="Seed for repeatability")
