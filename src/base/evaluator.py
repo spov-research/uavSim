@@ -1,11 +1,43 @@
-import copy
 from dataclasses import dataclass
-import time
 
 import pygame
 from tqdm import tqdm
 
-from gym_test import PyGameHuman
+
+class PyGameHuman:
+    def __init__(self, key_action_mapping: list[tuple[int, int]], terminate_key=pygame.K_t, kill_key=pygame.K_q):
+        self.kill_key = kill_key
+        self.terminate_key = terminate_key
+        self.key_action_mapping = key_action_mapping
+
+    def get_action(self) -> (int, bool, bool):
+        while True:
+            events = pygame.event.get()
+            for event in events:
+                if event.type == pygame.QUIT:
+                    return 0, False, True
+                elif event.type == pygame.KEYDOWN:
+                    keys = pygame.key.get_pressed()
+                    if keys[self.kill_key]:
+                        return 0, False, True
+                    if keys[self.terminate_key]:
+                        return 0, True, False
+                    else:
+                        for key, action in self.key_action_mapping:
+                            if keys[key]:
+                                return action, False, False
+
+    def get_action_non_blocking(self) -> (int, bool, bool):
+        keys = pygame.key.get_pressed()
+        if keys[self.kill_key]:
+            return None, False, True
+        if keys[self.terminate_key]:
+            return None, True, False
+        else:
+            for key, action in self.key_action_mapping:
+                if keys[key]:
+                    return action, False, False
+        return None, False, False
 
 
 @dataclass
@@ -98,6 +130,3 @@ class Evaluator:
             if self.mode == "step":
                 if key_pressed:
                     return None
-
-
-
