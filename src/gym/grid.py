@@ -13,14 +13,11 @@ from src.gym.utils import Map, load_or_create_landing
 
 @dataclass
 class GridGymParams:
-    map_path: str = "res/manhattan32.png"
+    map_path: Union[str, list[str]] = "res/manhattan32.png"
     budget_range: (int, int) = (50, 150)
     budget_std: float = 0.0
     spawn_anywhere: float = 0.0  # Probability of being spawned randomly, otherwise is spawned on slz
-
-    # Multi-agent
-    multi_agent: bool = False
-    num_agent_range: (int, int) = (1, 3)
+    safety_controller: bool = True
 
     # Rewards
     boundary_penalty: float = 1.0
@@ -37,10 +34,18 @@ class GridGymParams:
 class GridGym(gym.Env):
     def __init__(self, params: GridGymParams):
         self.params = params
-        self.map_image = Map.load_map(params.map_path)
-        self.map = np.stack((self.map_image.start_land_zone, self.map_image.nfz, self.map_image.obstacles), axis=-1)
-        self.landing_map = load_or_create_landing(params.map_path)
-        self.shape = np.array(self.map_image.start_land_zone.shape)
+        self.map_index = 0
+        self._map_image = []
+        self._landing_map = []
+        self.map = None
+
+        self.map_path = params.map_path
+        if not isinstance(self.map_path, list):
+            self.map_path = [self.map_path]
+
+        self.load_maps(self.map_path)
+        self._initialize_map(map_index=0)
+
         self.action_to_direction = {
             0: np.array([1, 0]),
             1: np.array([0, 1]),
@@ -59,11 +64,6 @@ class GridGym(gym.Env):
         self.landed = False
         self.boundary_counter = 0
         self.episodic_reward = 0
-
-        # Multi-Agent
-        if self.params.multi_agent:
-            self.padding_values += [0, 0]
-            self.positions = [self.position]
 
         self.centered_map = self.pad_centered()
 
@@ -141,10 +141,14 @@ class GridGym(gym.Env):
         # Always consume battery
         self.budget -= max(1 + np.random.normal(scale=self.params.budget_std), 0.0)
         self.crashed = self.budget <= 0 and not self.landed
+        if not self.params.safety_controller:
+            self.crashed = self.crashed or self.truncated
         self.truncated = self.truncated or self.crashed
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed, options=options)
+
+        self._initialize_map()
 
         self._reset()
 
@@ -192,7 +196,6 @@ class GridGym(gym.Env):
 
     def _render_frame(self):
         if self.window is None:
-            pygame.mixer.pre_init()
             pygame.init()
             pygame.display.init()
             self.window = pygame.display.set_mode((self.window_size[0], self.window_size[1]))
@@ -277,7 +280,8 @@ class GridGym(gym.Env):
         mask[4] = self.centered_map[self.center[0], self.center[1], 0]
         for a in range(4):
             target = self.center + self.action_to_direction[a]
-            target_position = np.clip(self.position + self.action_to_direction[a], (0, 0), self.shape - 1)
+            target_position = np.clip(self.position + self.action_to_direction[a], (0, 0),
+                                      np.array(self.landing_map.shape) - 1)
             boundary = not self.centered_map[target[0], target[1], 1]
             budget = self.budget > self.landing_map[target_position[0], target_position[1]]
             mask[a] = boundary and budget
@@ -286,3 +290,34 @@ class GridGym(gym.Env):
 
     def get_centered_pos(self, pos):
         return pos - self.position + self.center
+
+    def load_maps(self, map_paths):
+        self._map_image = []
+        self._landing_map = []
+        max_size = [0, 0]
+        for path in map_paths:
+            m = Map.load_map(path)
+            max_size = max(max_size[0], m.get_size()[0]), max(max_size[1], m.get_size()[1])
+            self._map_image.append(m)
+            self._landing_map.append(load_or_create_landing(path))
+
+        for m in self._map_image:
+            m.pad_to_size(max_size)
+        self.shape = np.array(max_size)
+
+    def _initialize_map(self, map_index=None):
+        if map_index is None:
+            map_index = np.random.randint(len(self._map_image))
+        self.map_index = map_index
+        self.map = np.stack((self.map_image.start_land_zone, self.map_image.nfz, self.map_image.obstacles), axis=-1)
+
+    def initialize_map(self, map_index=None):
+        self._initialize_map(map_index)
+
+    @property
+    def map_image(self):
+        return self._map_image[self.map_index]
+
+    @property
+    def landing_map(self):
+        return self._landing_map[self.map_index]

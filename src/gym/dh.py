@@ -80,8 +80,11 @@ class DHGym(GridGym):
         self.action_to_direction.update({5: np.array([0, 0])})
         self.action_space = spaces.Discrete(6)
         self.devices = []
-        self.channel = Channel(params.channel, params.map_path)
-        self.map = np.concatenate((self.map, np.zeros(self.map.shape[:-1] + (1,))), axis=-1)
+
+        self.initialize_map(0)
+        self._channel = []
+        for path in self.map_path:
+            self._channel.append(Channel(params.channel, path))
         self.padding_values += [0]
         self.centered_map = self.pad_centered()
 
@@ -96,11 +99,15 @@ class DHGym(GridGym):
         )
         self.colors = np.array(color_palette(n_colors=self.params.device_count_range[1])) * 255.0
 
+    def initialize_map(self, map_index=None):
+        self._initialize_map(map_index)
+        self.map = np.concatenate((self.map, np.zeros(self.map.shape[:-1] + (1,))), axis=-1)
+
     def reset(self, seed=None, options=None):
         gym.Env.reset(self, seed=seed, options=options)
 
+        self.initialize_map()
         self.devices = self.generate_devices()
-        self.map[..., 3] = 0
         self.update_device_map()
         self._reset()
 
@@ -223,3 +230,7 @@ class DHGym(GridGym):
             "cral": collection_ratio * self.landed
         })
         return info
+
+    @property
+    def channel(self):
+        return self._channel[self.map_index]

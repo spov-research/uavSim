@@ -11,6 +11,13 @@ class Map:
         self.nfz = map_data[:, :, 0].astype(bool).transpose()
         self.obstacles = map_data[:, :, 1].astype(bool).transpose()
 
+    def pad_to_size(self, size):
+        old = self.get_size()
+        self.start_land_zone = np.pad(self.start_land_zone, ((0, size[0] - old[0]), (0, size[1] - old[1])),
+                                      constant_values=0)
+        self.nfz = np.pad(self.nfz, ((0, size[0] - old[0]), (0, size[1] - old[1])), constant_values=1)
+        self.obstacles = np.pad(self.obstacles, ((0, size[0] - old[0]), (0, size[1] - old[1])), constant_values=1)
+
     def get_starting_vector(self):
         similar = np.where(self.start_land_zone)
         return list(zip(similar[1], similar[0]))

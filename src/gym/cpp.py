@@ -88,9 +88,9 @@ class SimpleSquareCamera:
         shadowing = load_or_create_shadowing(map_path)
         self.camera_half_length = chl
         self.size = np.array([2 * chl + 1] * 2)
-        self.obstacles = np.pad(total_map.obstacles, ((chl, chl), (chl, chl)), mode='constant', constant_values=False)
+        self.obstacles = np.pad(total_map.obstacles, ((chl, chl), (chl, chl)), mode='constant', constant_values=True)
         self.obstruction_map = np.pad(shadowing, ((0, 0), (0, 0), (chl, chl), (chl, chl)),
-                                      mode='constant', constant_values=False)
+                                      mode='constant', constant_values=True)
 
     def computeView(self, position):
         x_pos, y_pos = position
@@ -113,9 +113,10 @@ class CPPGym(GridGym):
     def __init__(self, params: CPPGymParams):
         super().__init__(params)
         self.params = params
-        self.camera = SimpleSquareCamera(params.camera_half_length, params.map_path)
-        target_and_covered = np.zeros(self.map.shape[:2] + (2,), dtype=bool)
-        self.map = np.concatenate((self.map, target_and_covered), axis=-1)
+        self.initialize_map(0)
+        self._camera = []
+        for path in self.map_path:
+            self._camera.append(SimpleSquareCamera(params.camera_half_length, path))
         self.padding_values += [0, 0]
         self.centered_map = self.pad_centered()
         self.generator = RandomTargetGenerator(params.generator, self.map_image.get_size())
@@ -130,9 +131,15 @@ class CPPGym(GridGym):
             }
         )
 
+    def initialize_map(self, map_index=None):
+        self._initialize_map(map_index)
+        target_and_covered = np.zeros(self.map.shape[:2] + (2,), dtype=bool)
+        self.map = np.concatenate((self.map, target_and_covered), axis=-1)
+
     def reset(self, seed=None, options=None):
         gym.Env.reset(self, seed=seed, options=options)
 
+        self.initialize_map()
         self.map[..., 3] = self.generator.generate_target(self.map_image.obstacles)
         self.map[..., 4] = False
         self._reset()
@@ -205,3 +212,7 @@ class CPPGym(GridGym):
             "cral": collection_ratio * self.landed
         })
         return info
+
+    @property
+    def camera(self):
+        return self._camera[self.map_index]
