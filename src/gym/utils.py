@@ -98,6 +98,47 @@ def load_or_create_landing(map_path):
         return lm
 
 
+def calculate_shortest_distance(map_path):
+    print("Calculating shortest distance map")
+    total_map = Map.load_map(map_path)
+    nfz = np.pad(total_map.nfz, pad_width=((1, 1), (1, 1)), constant_values=1)
+    x, y = nfz.shape
+    nfz = np.expand_dims(np.expand_dims(nfz, axis=0), axis=0)  # [1, 1, x, y]
+    nfz = np.logical_or(np.transpose(nfz, (2, 3, 0, 1)), nfz)
+
+    min_distance = np.ones((x, y, x, y)) * np.inf
+    x_index = np.repeat(np.arange(x), y, axis=0)
+    y_index = np.tile(np.arange(y), x)
+
+    min_distance[x_index, y_index, x_index, y_index] = 0
+    previous = np.zeros_like(min_distance)
+
+    while np.not_equal(previous, min_distance).any():
+        previous = min_distance
+        temp = min_distance + 1
+        t1 = np.roll(temp, shift=1, axis=2)
+        t2 = np.roll(temp, shift=-1, axis=2)
+        t3 = np.roll(temp, shift=1, axis=3)
+        t4 = np.roll(temp, shift=-1, axis=3)
+        t = np.stack((min_distance, t1, t2, t3, t4), axis=-1)
+        min_distance = np.where(nfz, np.inf, np.min(t, axis=-1))
+
+    min_distance = min_distance[1:-1, 1:-1, 1:-1, 1:-1]
+    min_distance = np.where(min_distance == np.inf, -1, min_distance).astype(int)
+
+    return min_distance
+
+
+def load_or_create_shortest_distance(map_path):
+    filename = os.path.splitext(map_path)[0] + "_shortest_distance.npy"
+    if os.path.exists(filename):
+        return np.load(filename)
+    else:
+        sd = calculate_shortest_distance(map_path)
+        np.save(filename, sd)
+        return sd
+
+
 def bresenham(x0, y0, x1, y1, obstacles, shadow_map):
     x_dist = abs(x0 - x1)
     y_dist = -abs(y0 - y1)
@@ -158,3 +199,8 @@ def load_or_create_shadowing(map_path):
         return np.load(shadow_file_name)
     else:
         return calculate_shadowing(map_path, shadow_file_name)
+
+
+if __name__ == "__main__":
+    sd = calculate_shortest_distance("res/manhattan32.png")
+    print(sd.shape)
