@@ -11,7 +11,7 @@ class PyGameHuman:
         self.terminate_key = terminate_key
         self.key_action_mapping = key_action_mapping
 
-    def get_action(self) -> (int, bool, bool):
+    def get_action(self, position) -> (int, bool, bool):
         while True:
             events = pygame.event.get()
             for event in events:
@@ -32,7 +32,7 @@ class PyGameHuman:
 
                     print(pos)
 
-    def get_action_non_blocking(self) -> (int, bool, bool):
+    def get_action_non_blocking(self, position) -> (int, bool, bool):
         keys = pygame.key.get_pressed()
         if keys[self.kill_key]:
             return None, False, True
@@ -81,18 +81,21 @@ class PyGameHumanMouse:
                         flat_action = action[0] * self.target_size[0] + action[1]
                         return flat_action, False, False
 
-
-
-    def get_action_non_blocking(self) -> (int, bool, bool):
+    def get_action_non_blocking(self, position) -> (int, bool, bool):
         keys = pygame.key.get_pressed()
         if keys[self.kill_key]:
             return None, False, True
         if keys[self.terminate_key]:
             return None, True, False
-        else:
-            for key, action in self.key_action_mapping:
-                if keys[key]:
-                    return action, False, False
+        pressed = pygame.mouse.get_pressed()
+        if pressed[0]:
+            pos = np.array(pygame.mouse.get_pos())
+            action = (pos * self.cells / self.window_size).astype(int)
+            action = (action - position) + self.target_size // 2
+
+            if (action >= 0).all() and (action < self.target_size).all():
+                flat_action = action[0] * self.target_size[0] + action[1]
+                return flat_action, False, False
         return None, False, False
 
 
@@ -104,7 +107,7 @@ class EvaluatorParams:
 
 class Evaluator:
 
-    def __init__(self, params: EvaluatorParams, trainer, gym):
+    def __init__(self, params: EvaluatorParams, trainer, gym, human=None):
         self.params = params
         self.trainer = trainer
         self.gym = gym.__class__(gym.params)
@@ -113,8 +116,8 @@ class Evaluator:
         if self.params.show_eval:
             self.gym.params.render = True
 
-        self.human = None
-        self.mode = "run"
+        self.human = human
+        self.mode = "step"
 
     def evaluate_episode(self):
         state, info = self.gym.reset()
@@ -140,11 +143,8 @@ class Evaluator:
 
     def evaluate_episode_interactive(self):
         if self.human is None:
-            self.human = PyGameHuman(key_action_mapping=[(pygame.K_RIGHT, 0),
-                                                         (pygame.K_DOWN, 1),
-                                                         (pygame.K_LEFT, 2),
-                                                         (pygame.K_UP, 3),
-                                                         (pygame.K_SPACE, 4)])
+            print("No interface configured. Cannot do interactive.")
+            return
         state, info = self.gym.reset()
         obs = self.trainer.prepare_observations(state)
         terminal = False
@@ -165,7 +165,7 @@ class Evaluator:
             key_pressed = False
             events = pygame.event.get()
             for event in events:
-                if event.type == pygame.KEYDOWN:
+                if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
                     keys = pygame.key.get_pressed()
                     key_pressed = True
                     if keys[pygame.K_h]:
@@ -174,7 +174,7 @@ class Evaluator:
                         self.mode = "step"
                     elif keys[pygame.K_r]:
                         self.mode = "run"
-                    action, terminate, kill = self.human.get_action_non_blocking()
+                    action, terminate, kill = self.human.get_action_non_blocking(self.gym.position)
                     if kill:
                         exit(0)
 

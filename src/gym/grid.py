@@ -53,6 +53,7 @@ class GridGym(gym.Env):
             3: np.array([0, -1]),
             4: np.array([0, 0])
         }
+        self._action_to_direction_np = np.array(list(self.action_to_direction.values()))
         self.center = self.shape - 1
         self.padding_values = [0, 1, 1]
 
