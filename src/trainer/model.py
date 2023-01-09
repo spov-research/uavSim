@@ -48,6 +48,10 @@ class QModel:
     def get_advantages(self, obs):
         return self.model(obs)["advantage"]
 
+    @tf.function
+    def get_output(self, obs):
+        return self.model(obs)
+
     def create_model(self):
         pass
 
@@ -421,6 +425,7 @@ class SoftmaxPolicyParams:
     temperature: float = 0.1
     decay_steps: int = 2_000_000
     decay_rate: float = 0.01
+    advantage_explore: bool = False
 
 
 class SoftmaxPolicy:
@@ -434,9 +439,14 @@ class SoftmaxPolicy:
         self.n = n
 
     @tf.function
-    def sample(self, q_values, step):
-        return tf.random.categorical(q_values / self.temperature(step), 1)[..., 0]
+    def sample(self, nn_output, step):
+        values = self.get_values(nn_output)
+        return tf.random.categorical(values / self.temperature(step), 1)[..., 0]
 
     @tf.function
-    def get_probs(self, q_values, step):
-        return tf.math.softmax(q_values / self.temperature(step))
+    def get_probs(self, nn_output, step):
+        values = self.get_values(nn_output)
+        return tf.math.softmax(values / self.temperature(step))
+
+    def get_values(self, nn_output):
+        return nn_output["advantages"] if self.params.advantage_explore else nn_output["q_values"]

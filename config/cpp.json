@@ -1,6 +1,6 @@
 {
     "trainer": {
-        "training_steps": 2000000,
+        "training_steps": 5000000,
         "batch_size": 128,
         "amsgrad": true,
         "lr": {
@@ -9,15 +9,13 @@
             "decay_steps": 500000
         },
         "alpha": 0.005,
-        "gamma": 0.96,
+        "gamma": 0.97,
         "memory": {
             "size": 250000,
-            "cer": true
+            "cer": false
         },
         "rm_prefill": 10000,
-        "max_episode_steps": 1000,
-        "reward_scale": 1.0,
-        "advantage_explore": false
+        "reward_scale": 1.0
     },
     "gym": {
         "type": "cpp",
@@ -36,7 +34,8 @@
             "recharge": true,
             "start_landed": true,
             "charge_amount": 2.0,
-            "max_steps": 1000,
+            "timeout_steps": 1000,
+            "inactivity_timeout": false,
             "render": false,
             "display_mode": "fixed",
             "render_fps": 8,
@@ -73,8 +72,8 @@
             "dueling": false,
             "conv_layers": 3,
             "conv_kernel_size": 3,
-            "conv_kernels": 32,
-            "hidden_layer_size": 256,
+            "conv_kernels": 64,
+            "hidden_layer_size": 512,
             "hidden_layer_num": 3
         }
     },
@@ -82,13 +81,13 @@
         "type": "glob_loc",
         "params": {
             "global_map_scaling": 3,
-            "local_map_size": 17,
-            "observe_mask": false
+            "local_map_size": 17
         }
     },
     "policy": {
         "temperature": 0.05,
         "decay_steps": 1000000,
-        "decay_rate": 0.01
+        "decay_rate": 0.01,
+        "advantage_explore": false
     }
 }

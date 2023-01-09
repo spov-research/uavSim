@@ -24,8 +24,6 @@ class DDQNTrainer(BaseTrainer):
 
         cql_alpha: float = 0.0
 
-        advantage_explore: bool = True
-
     def __init__(self, params: Params, gym: GridGym, logger: Optional[Logger], q_model, q_target_model,
                  policy, observation_function):
         super().__init__(params, gym, observation_function)
@@ -73,12 +71,9 @@ class DDQNTrainer(BaseTrainer):
 
     @tf.function
     def get_exploration_action_tf(self, obs):
-        if self.params.advantage_explore:
-            vals = self.q_model.get_advantages(obs)
-        else:
-            vals = self.q_model.get_q_values(obs)
+        nn_output = self.q_model.get_output(obs)
 
-        return self.policy.sample(vals, self.train_steps)
+        return self.policy.sample(nn_output, self.train_steps)
 
     def store_experience(self, obs, action, reward, next_obs, terminal):
         self.replay_memory.store(
@@ -177,12 +172,10 @@ class DDQNTrainer(BaseTrainer):
         pygame.font.init()
         font = pygame.font.SysFont('Arial', 16)
         obs = self.observation_function(state)
-        q_values = self.q_model.get_q_values(obs).numpy()[0]
-        advantages = self.q_model.get_advantages(obs)
-        if self.params.advantage_explore:
-            p = self.policy.get_probs(advantages[0], step=0).numpy()
-        else:
-            p = self.policy.get_probs(q_values, step=0).numpy()
+        nn_output = self.q_model.get_output(obs)
+        q_values = nn_output["q_values"].numpy()[0]
+        advantages = nn_output["advantages"].numpy()[0] if "advantages" in nn_output else None
+        p = self.policy.get_probs(nn_output, step=0).numpy()
 
         tile_size = 50
         q_action_canvas = self.gym.draw_action_grid([f"{v:.2f}" for v in q_values], tile_size)
@@ -197,7 +190,6 @@ class DDQNTrainer(BaseTrainer):
         canvas.blit(p_action_canvas, (0, 530))
 
         if advantages is not None:
-            advantages = advantages.numpy()[0]
             adv_action_canvas = self.gym.draw_action_grid([f"{adv:.3f}" for adv in advantages], tile_size)
             canvas.blit(font.render("Advantages", True, (0, 200, 0)), (0, 340))
             canvas.blit(adv_action_canvas, (0, 360))
