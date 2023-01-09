@@ -2,29 +2,28 @@ import copy
 from copy import deepcopy
 from dataclasses import dataclass
 
-import gym
+import gymnasium as gym
 import numpy as np
 import pygame
-from gym import spaces
+from gymnasium import spaces
 
-from src.gym.grid import GridGym, GridGymParams
+from src.gym.grid import GridGym
 from src.gym.utils import load_or_create_shadowing
 from seaborn import color_palette
 
 
-@dataclass
-class ChannelParams:
-    cell_edge_snr: float = -25  # in dB
-    los_path_loss_exp: float = 2.27
-    nlos_path_loss_exp: float = 3.64
-    uav_altitude: float = 10.0  # in m
-    cell_size: float = 10.0  # in m
-    los_shadowing_variance: float = 2.0
-    nlos_shadowing_variance: float = 5.0
-
-
 class Channel:
-    def __init__(self, params: ChannelParams, map_path):
+    @dataclass
+    class Params:
+        cell_edge_snr: float = -25  # in dB
+        los_path_loss_exp: float = 2.27
+        nlos_path_loss_exp: float = 3.64
+        uav_altitude: float = 10.0  # in m
+        cell_size: float = 10.0  # in m
+        los_shadowing_variance: float = 2.0
+        nlos_shadowing_variance: float = 5.0
+
+    def __init__(self, params: Params, map_path):
         self.params = params
         self.total_shadow_map = load_or_create_shadowing(map_path)
         self._norm_distance = np.sqrt(2) * 0.5 * self.total_shadow_map.shape[0] * self.params.cell_size
@@ -49,7 +48,7 @@ class Channel:
             self.params.uav_altitude ** 2)
 
         if self.total_shadow_map[int(round(device_pos[0])), int(round(device_pos[1])),
-                                 int(round(uav_pos[0])), int(round(uav_pos[1]))]:
+        int(round(uav_pos[0])), int(round(uav_pos[1]))]:
             snr = self.los_norm_factor * dist ** (
                 -self.params.nlos_path_loss_exp) * 10 ** (np.random.normal(0., self.nlos_shadowing_sigma) / 10)
         else:
@@ -61,20 +60,19 @@ class Channel:
         return rate
 
 
-@dataclass
-class DHGymParams(GridGymParams):
-    data_reward: float = 1.0
-    device_count_range: (int, int) = (3, 10)
-    data_range: (float, float) = (5.0, 20.0)
-    comm_steps: int = 4
-    channel: ChannelParams = ChannelParams()
-
-    # Render
-    show_data_rates: bool = True
-
-
 class DHGym(GridGym):
-    def __init__(self, params: DHGymParams):
+    @dataclass
+    class Params(GridGym.Params):
+        data_reward: float = 1.0
+        device_count_range: (int, int) = (3, 10)
+        data_range: (float, float) = (5.0, 20.0)
+        comm_steps: int = 4
+        channel: Channel.Params = Channel.Params()
+
+        # Render
+        show_data_rates: bool = True
+
+    def __init__(self, params: Params):
         super().__init__(params)
         self.params = params
         self.action_to_direction.update({5: np.array([0, 0])})
@@ -138,8 +136,7 @@ class DHGym(GridGym):
         old_position = deepcopy(self.position)
         super()._step(action)
         cells_remaining = self.get_remaining_data()
-        terminated = self.landed or self.crashed
-        if not terminated:
+        if not self.terminated:
             positions = list(
                 reversed(np.linspace(self.position, old_position, num=self.params.comm_steps, endpoint=False)))
             for device in self.devices:
@@ -162,10 +159,13 @@ class DHGym(GridGym):
         if self.params.render:
             self._render_frame()
 
-        return self._get_obs(), reward, terminated, self.truncated, self._get_info()
+        return self._get_obs(), reward, self.terminated, self.truncated, self._get_info()
 
     def get_remaining_data(self):
         return np.sum([device["data"] - device["consumed"] for device in self.devices])
+
+    def task_solved(self):
+        return self.get_remaining_data() == 0
 
     def update_device_map(self):
         for device in self.devices:

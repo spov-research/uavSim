@@ -9,14 +9,17 @@ from utils import dict_mean
 class LoggerParams:
     loss_period: int = 100
     evaluation_period: int = 1_000
+    evaluation_start: int = 25_000
     save_period: int = 10_000
 
 
 class Logger:
-    def __init__(self, params: LoggerParams, log_dir):
+    def __init__(self, params: LoggerParams, log_dir, q_model):
         self.params = params
         self.log_dir = log_dir
         self.evaluator = None
+        self.q_model = q_model
+        self.save_network(q_model.model)
 
         self.log_writer = tf.summary.create_file_writer(self.log_dir + '/training')
 
@@ -37,18 +40,20 @@ class Logger:
 
     def log_step(self, step_info):
         self.steps += 1
-        if step_info["terminal"]:
-            with self.log_writer.as_default():
-                for name, value in step_info.items():
-                    tf.summary.scalar(f'episodic/{name}', value, self.steps)
-
-        if self.steps % self.params.evaluation_period == 0:
+        if self.steps % self.params.evaluation_period == 0 and self.steps >= self.params.evaluation_start:
             if self.evaluator is not None:
                 info = self.evaluator.evaluate_episode()
                 with self.log_writer.as_default():
                     for name, value in info.items():
                         tf.summary.scalar(f'evaluation/{name}', value, self.steps)
 
+        if self.steps % self.params.save_period == 0:
+            self.save_weights(self.q_model.model)
+
+    def log_episode(self, info):
+        with self.log_writer.as_default():
+            for name, value in info.items():
+                tf.summary.scalar(f'episodic/{name}', value, self.steps)
     def save_network(self, network, name="model"):
         network.save(self.log_dir + f"/models/{name}")
 

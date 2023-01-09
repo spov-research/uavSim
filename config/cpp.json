@@ -2,49 +2,93 @@
     "trainer": {
         "training_steps": 2000000,
         "batch_size": 128,
-        "global_map_scaling": 3,
-        "local_map_size": 17,
-        "temperature": 0.1,
-        "conv_layers": 2,
-        "conv_kernel_size": 5,
-        "conv_kernels": 16,
-        "hidden_layer_size": 256,
-        "hidden_layer_num": 3,
-        "learning_rate": 3e-05,
+        "amsgrad": true,
+        "lr": {
+            "base": 3e-05,
+            "decay_rate": 0.5,
+            "decay_steps": 500000
+        },
         "alpha": 0.005,
-        "gamma": 0.95,
-        "save_period": 10000,
-        "rm_size": 50000,
-        "rm_prefill": 25000
+        "gamma": 0.96,
+        "memory": {
+            "size": 250000,
+            "cer": true
+        },
+        "rm_prefill": 10000,
+        "max_episode_steps": 1000,
+        "reward_scale": 1.0,
+        "advantage_explore": false
     },
     "gym": {
-        "map_path": "res/manhattan32.png",
-        "budget_range": [
-            50,
-            150
-        ],
-        "boundary_penalty": 1.0,
-        "empty_battery_penalty": 150.0,
-        "movement_penalty": 0.2,
-        "cell_reward": 0.4,
-        "camera_half_length": 2,
-        "generator": {
-            "coverage_range": [
-                0.2,
-                0.5
+        "type": "cpp",
+        "params": {
+            "map_path": "res/manhattan32_mod.png",
+            "budget_range": [
+                50,
+                150
             ],
-            "shape_range": [
-                3,
-                8
-            ]
+            "budget_std": 0.0,
+            "spawn_anywhere": 0.0,
+            "safety_controller": true,
+            "boundary_penalty": 1.0,
+            "empty_battery_penalty": 150.0,
+            "movement_penalty": 0.2,
+            "recharge": true,
+            "start_landed": true,
+            "charge_amount": 2.0,
+            "max_steps": 1000,
+            "render": false,
+            "display_mode": "fixed",
+            "render_fps": 8,
+            "window_size": 768,
+            "cell_reward": 0.4,
+            "camera_half_length": 2,
+            "generator": {
+                "coverage_range": [
+                    0.2,
+                    0.5
+                ],
+                "shape_range": [
+                    3,
+                    8
+                ]
+            }
         }
     },
     "logger": {
         "loss_period": 100,
         "evaluation_period": 1000,
-        "save_period": 10000
+        "evaluation_start": 10000,
+        "save_period": 2000
     },
     "evaluator": {
-        "show_eval": false
+        "show_eval": false,
+        "use_softmax": false
+    },
+    "q_model": {
+        "type": "reduce",
+        "params": {
+            "action_mask": true,
+            "positional_encoding": true,
+            "dueling": false,
+            "conv_layers": 3,
+            "conv_kernel_size": 3,
+            "conv_kernels": 32,
+            "hidden_layer_size": 256,
+            "hidden_layer_num": 3
+        }
+    },
+    "observation": {
+        "type": "glob_loc",
+        "params": {
+            "global_map_scaling": 3,
+            "local_map_size": 17,
+            "observe_mask": false
+        }
+    },
+    "policy": {
+        "temperature": 0.05,
+        "decay_steps": 1000000,
+        "decay_rate": 0.01
     }
 }

@@ -1,12 +1,15 @@
 from dataclasses import dataclass
+from typing import Tuple, List
 
+import cv2
 import numpy as np
 import pygame
 from tqdm import tqdm
+import tensorflow as tf
 
 
 class PyGameHuman:
-    def __init__(self, key_action_mapping: list[tuple[int, int]], terminate_key=pygame.K_t, kill_key=pygame.K_q):
+    def __init__(self, key_action_mapping: List[Tuple[int, int]], terminate_key=pygame.K_t, kill_key=pygame.K_q):
         self.kill_key = kill_key
         self.terminate_key = terminate_key
         self.key_action_mapping = key_action_mapping
@@ -32,6 +35,13 @@ class PyGameHuman:
 
                     print(pos)
 
+    def wait_key(self):
+        while True:
+            events = pygame.event.get()
+            for event in events:
+                if event.type == pygame.KEYDOWN:
+                    return
+
     def get_action_non_blocking(self, position) -> (int, bool, bool):
         keys = pygame.key.get_pressed()
         if keys[self.kill_key]:
@@ -46,7 +56,7 @@ class PyGameHuman:
 
 
 class PyGameHumanMouse:
-    def __init__(self, key_action_mapping: list[tuple[int, int]], window_size=768, cells=32, target_size=(17, 17),
+    def __init__(self, key_action_mapping: List[Tuple[int, int]], window_size=768, cells=32, target_size=(15, 15),
                  terminate_key=pygame.K_t,
                  kill_key=pygame.K_q):
         self.kill_key = kill_key
@@ -117,19 +127,21 @@ class Evaluator:
             self.gym.params.render = True
 
         self.human = human
-        self.mode = "step"
+        self.mode = "human"
+        self.stochastic = self.params.use_softmax
+        self.recorder = None
 
     def evaluate_episode(self):
         state, info = self.gym.reset()
-        obs = self.trainer.prepare_observations(state)
-        terminal = False
-        while not terminal:
+        while not info["timeout"]:
+            obs = self.trainer.observation_function(state)
             if self.params.use_softmax:
                 action = self.trainer.get_action(obs)
             else:
-                action = self.trainer.get_exploit_action(obs)
+                action = self.trainer.q_model.get_max_action(obs)[0].numpy()
             state, reward, terminal, truncated, info = self.gym.step(action)
-            obs = self.trainer.prepare_observations(state)
+            if terminal:
+                break
 
         if self.params.show_eval:
             self.gym.close()
@@ -146,17 +158,35 @@ class Evaluator:
             print("No interface configured. Cannot do interactive.")
             return
         state, info = self.gym.reset()
-        obs = self.trainer.prepare_observations(state)
-        terminal = False
-        while not terminal:
+        while not info["timeout"]:
+            obs = self.trainer.observation_function(state)
             action = self.handle_events()
+            if self.recorder is not None:
+                frame = pygame.surfarray.pixels3d(self.gym.window)
+                frame = np.transpose(frame, (1, 0, 2))
+                frame = frame[..., ::-1]
+                self.recorder.write(frame)
+                del frame
             if action is None:
-                if self.params.use_softmax:
+                if self.stochastic:
                     action = self.trainer.get_action(obs)
                 else:
-                    action = self.trainer.get_exploit_action(obs)
+                    action = self.trainer.q_model.get_max_action(obs)[0].numpy()
             state, reward, terminal, truncated, info = self.gym.step(action)
-            obs = self.trainer.prepare_observations(state)
+            if terminal:
+                break
+        if self.recorder is not None:
+            frame = pygame.surfarray.pixels3d(self.gym.window)
+            frame = np.transpose(frame, (1, 0, 2))
+            frame = frame[..., ::-1]
+            for _ in range(8):
+                self.recorder.write(frame)
+            del frame
+            self.recorder.release()
+            self.recorder = None
+        if self.mode == "run_to_end":
+            self.mode = "human"
+            self.human.wait_key()
         return info
 
     def handle_events(self):
@@ -171,14 +201,30 @@ class Evaluator:
                     if keys[pygame.K_h]:
                         self.mode = "human"
                     elif keys[pygame.K_s]:
-                        self.mode = "step"
+                        self.mode = "human"
+                        return None
                     elif keys[pygame.K_r]:
                         self.mode = "run"
+                    elif keys[pygame.K_y]:
+                        self.mode = "run_to_end"
+                    elif keys[pygame.K_t]:
+                        self.stochastic = not self.stochastic
+                        print("Stochastic actions") if self.stochastic else print("Greedy actions")
+                    elif keys[pygame.K_o]:
+                        record_to = input("Record to: [video.mp4]")
+                        if not record_to:
+                            record_to = "video.mp4"
+                        record_fps = input("Framerate: [8]fps")
+                        if not record_fps:
+                            record_fps = 8
+                        record_fps = int(record_fps)
+                        self.recorder = cv2.VideoWriter(record_to, cv2.VideoWriter_fourcc(*'mp4v'), record_fps,
+                                                        self.gym.window.get_size())
+
                     action, terminate, kill = self.human.get_action_non_blocking(self.gym.position)
                     if kill:
                         exit(0)
-
-            if self.mode == "run":
+            if self.mode == "run" or self.mode == "run_to_end":
                 return None
             if self.mode == "human":
                 if action is not None:

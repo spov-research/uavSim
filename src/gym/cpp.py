@@ -1,25 +1,23 @@
-import gym
+import gymnasium as gym
 import numpy as np
 import pygame
-from gym import spaces
+from gymnasium import spaces
 from dataclasses import dataclass
 
 from skimage.draw import random_shapes
 import logging
 
-from src.gym.grid import GridGym, GridGymParams
+from src.gym.grid import GridGym
 from src.gym.utils import load_or_create_shadowing, Map
 
 
-@dataclass
-class RandomTargetGeneratorParams:
-    coverage_range: (float, float) = (0.2, 0.5)
-    shape_range: (int, int) = (3, 8)
-
-
 class RandomTargetGenerator:
+    @dataclass
+    class Params:
+        coverage_range: (float, float) = (0.2, 0.5)
+        shape_range: (int, int) = (3, 8)
 
-    def __init__(self, params: RandomTargetGeneratorParams, shape):
+    def __init__(self, params: Params, shape):
         self.params = params
         self.shape = shape
 
@@ -102,15 +100,15 @@ class SimpleSquareCamera:
         return view
 
 
-@dataclass
-class CPPGymParams(GridGymParams):
-    cell_reward: float = 0.4
-    camera_half_length: int = 2
-    generator: RandomTargetGeneratorParams = RandomTargetGeneratorParams()
-
-
 class CPPGym(GridGym):
-    def __init__(self, params: CPPGymParams):
+    @dataclass
+    class Params(GridGym.Params):
+        cell_reward: float = 0.4
+        camera_half_length: int = 2
+        generator: RandomTargetGenerator.Params = RandomTargetGenerator.Params()
+        inactivity_timeout: bool = False
+
+    def __init__(self, params: Params):
         super().__init__(params)
         self.params = params
         self.initialize_map(0)
@@ -127,9 +125,12 @@ class CPPGym(GridGym):
             {
                 "map": spaces.Box(low=0, high=1, shape=map_obs_shape, dtype=bool),
                 "budget": spaces.Box(low=0, high=self.params.budget_range[1], dtype=int),
-                "mask": spaces.Box(low=0, high=1, shape=(5,), dtype=bool)
+                "landed": spaces.Box(low=0, high=1, dtype=bool),
+                "mask": spaces.Box(low=0, high=1, shape=(len(self.action_to_direction),), dtype=bool)
             }
         )
+
+        self.inactivity_steps = 0
 
     def initialize_map(self, map_index=None):
         self._initialize_map(map_index)
@@ -142,12 +143,13 @@ class CPPGym(GridGym):
         self.initialize_map()
         self.map[..., 3] = self.generator.generate_target(self.map_image.obstacles)
         self.map[..., 4] = False
+        self.inactivity_steps = 0
         self._reset()
 
         if self.params.render:
             self._render_frame()
 
-        return self._get_obs(), self._get_info()
+        return self.get_obs(), self._get_info()
 
     def _get_obs(self):
         remaining_target = np.logical_and(self.centered_map[..., 3], np.logical_not(self.centered_map[..., 4]))
@@ -155,14 +157,15 @@ class CPPGym(GridGym):
         return {
             "map": map_obs,
             "budget": self.budget,
+            "landed": self.landed,
             "mask": self.get_action_mask()
         }
 
     def step(self, action):
+
         super()._step(action)
         cells_remaining = self.get_remaining_cells()
-        terminated = self.landed or self.crashed
-        if not terminated:
+        if not self.terminated and not self.landed:
             view = self.camera.computeView(self.position)
             chl = self.params.camera_half_length
             self.centered_map[self.center[0] - chl: self.center[0] + chl + 1,
@@ -172,16 +175,25 @@ class CPPGym(GridGym):
                        :]
 
         reward = self._get_rewards()
-        reward += (cells_remaining - self.get_remaining_cells()) * self.params.cell_reward
+        cells_collected = cells_remaining - self.get_remaining_cells()
+        reward += cells_collected * self.params.cell_reward
         self.episodic_reward += reward
+
+        if cells_collected > 0:
+            self.inactivity_steps = 0
+        else:
+            self.inactivity_steps += 1
 
         if self.params.render:
             self._render_frame()
 
-        return self._get_obs(), reward, terminated, self.truncated, self._get_info()
+        return self.get_obs(), reward, self.terminated, self.truncated, self._get_info()
 
     def get_remaining_cells(self):
         return np.sum(np.logical_and(self.centered_map[..., 3], np.logical_not(self.centered_map[..., 4])))
+
+    def task_solved(self):
+        return self.get_remaining_cells() == 0
 
     def _draw_cells(self, canvas, map_data, pix_size):
         pix_x = np.array((pix_size, 0))
@@ -211,6 +223,10 @@ class CPPGym(GridGym):
             "collection_ratio": collection_ratio,
             "cral": collection_ratio * self.landed
         })
+        if self.params.inactivity_timeout:
+            info["timeout"] = self.inactivity_steps >= self.params.timeout_steps
+        if collection_ratio == 1:
+            info["completion_steps"] = self.steps
         return info
 
     @property

@@ -1,25 +1,19 @@
-import gym
 import numpy as np
 import pygame
-from gym import spaces
+from gymnasium import spaces
 from dataclasses import dataclass
 
-from skimage.draw import random_shapes
-import logging
-
-from src.gym.cpp import CPPGym, CPPGymParams
-from src.gym.grid import GridGym, GridGymParams
-from src.gym.utils import load_or_create_shadowing, Map, load_or_create_shortest_distance
-
-
-@dataclass
-class HCPPGymParams(CPPGymParams):
-    target_shape: (int, int) = (17, 17)
-    l2_prio: bool = True
+from src.gym.cpp import CPPGym
+from src.gym.utils import load_or_create_shortest_distance
 
 
 class HCPPGym(CPPGym):
-    def __init__(self, params: HCPPGymParams):
+    @dataclass
+    class Params(CPPGym.Params):
+        target_shape: (int, int) = (17, 17)
+        l2_prio: bool = True
+
+    def __init__(self, params: Params):
         super().__init__(params)
         self.params = params
         self._shortest_distance = []
