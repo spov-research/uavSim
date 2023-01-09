@@ -38,7 +38,7 @@
             "inactivity_timeout": false,
             "render": false,
             "display_mode": "fixed",
-            "render_fps": 8,
+            "render_fps": 30,
             "window_size": 768,
             "cell_reward": 0.4,
             "camera_half_length": 2,

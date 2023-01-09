@@ -449,4 +449,4 @@ class SoftmaxPolicy:
         return tf.math.softmax(values / self.temperature(step))
 
     def get_values(self, nn_output):
-        return nn_output["advantages"] if self.params.advantage_explore else nn_output["q_values"]
+        return nn_output["advantage"] if self.params.advantage_explore else nn_output["q_values"]

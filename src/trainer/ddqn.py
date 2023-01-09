@@ -174,8 +174,8 @@ class DDQNTrainer(BaseTrainer):
         obs = self.observation_function(state)
         nn_output = self.q_model.get_output(obs)
         q_values = nn_output["q_values"].numpy()[0]
-        advantages = nn_output["advantages"].numpy()[0] if "advantages" in nn_output else None
-        p = self.policy.get_probs(nn_output, step=0).numpy()
+        advantages = nn_output["advantage"].numpy()[0] if "advantage" in nn_output else None
+        p = self.policy.get_probs(nn_output, step=0).numpy()[0]
 
         tile_size = 50
         q_action_canvas = self.gym.draw_action_grid([f"{v:.2f}" for v in q_values], tile_size)
