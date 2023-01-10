@@ -15,7 +15,13 @@
             "cer": false
         },
         "rm_prefill": 10000,
-        "reward_scale": 1.0
+        "reward_scale": 1.0,
+        "use_discount_decay": false,
+        "discount_decay": {
+            "base": 0.04,
+            "decay_rate": 0.5,
+            "decay_steps": 1000000
+        }
     },
     "gym": {
         "type": "cpp",
@@ -30,6 +36,7 @@
             "safety_controller": true,
             "boundary_penalty": 1.0,
             "empty_battery_penalty": 150.0,
+            "completion_reward": 0.0,
             "movement_penalty": 0.2,
             "recharge": true,
             "start_landed": true,

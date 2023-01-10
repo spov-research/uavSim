@@ -187,6 +187,13 @@ class Evaluator:
         if self.mode == "run_to_end":
             self.mode = "human"
             self.human.wait_key()
+        if self.mode == "blind":
+            self.mode = "human"
+            self.gym.params.render = True
+            self.gym.params.draw_trajectory = True
+            self.gym.render()
+            self.gym.params.draw_trajectory = False
+            self.human.wait_key()
         return info
 
     def handle_events(self):
@@ -207,6 +214,9 @@ class Evaluator:
                         self.mode = "run"
                     elif keys[pygame.K_y]:
                         self.mode = "run_to_end"
+                    elif keys[pygame.K_u]:
+                        self.mode = "blind"
+                        self.gym.params.render = False
                     elif keys[pygame.K_t]:
                         self.stochastic = not self.stochastic
                         print("Stochastic actions") if self.stochastic else print("Greedy actions")
@@ -224,7 +234,7 @@ class Evaluator:
                     action, terminate, kill = self.human.get_action_non_blocking(self.gym.position)
                     if kill:
                         exit(0)
-            if self.mode == "run" or self.mode == "run_to_end":
+            if self.mode in ["run", "run_to_end", "blind"]:
                 return None
             if self.mode == "human":
                 if action is not None:

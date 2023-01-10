@@ -11,6 +11,7 @@ from src.trainer.base import BaseTrainer
 from src.trainer.memory import ReplayMemoryFactory
 from src.gym.grid import GridGym
 from src.base.logger import Logger
+from src.trainer.utils import DecayParams
 
 
 class DDQNTrainer(BaseTrainer):
@@ -23,6 +24,9 @@ class DDQNTrainer(BaseTrainer):
         reward_scale: float = 1.0
 
         cql_alpha: float = 0.0
+
+        use_discount_decay: bool = False
+        discount_decay: DecayParams = DecayParams(0.04, 0.5, 1_000_000)
 
     def __init__(self, params: Params, gym: GridGym, logger: Optional[Logger], q_model, q_target_model,
                  policy, observation_function):
@@ -41,6 +45,10 @@ class DDQNTrainer(BaseTrainer):
         self.learning_rate = ExponentialDecay(self.params.lr.base,
                                               decay_steps=self.params.lr.decay_steps,
                                               decay_rate=self.params.lr.decay_rate)
+
+        self.discount_decay = ExponentialDecay(self.params.discount_decay.base,
+                                               decay_steps=self.params.discount_decay.decay_steps,
+                                               decay_rate=self.params.discount_decay.decay_rate)
         self.optimizer = tf.optimizers.Adam(learning_rate=self.learning_rate, amsgrad=self.params.amsgrad)
         self.gym.register_render(self.render, shape=(250, 750))
 
@@ -113,6 +121,8 @@ class DDQNTrainer(BaseTrainer):
 
     @tf.function
     def _train_step_tf(self, obs, action, reward, next_obs, terminal, weight):
+
+        logs = {}
         # Get the Q-values for the next state using the primary Q network
         next_q_vals = self.q_model.get_q_values(next_obs)
         # Select the action with the highest Q-value for the next state using the primary Q network
@@ -120,10 +130,11 @@ class DDQNTrainer(BaseTrainer):
         # Get the Q-value for the next action using the target Q network
         next_q = tf.gather_nd(self.target_q_model.get_q_values(next_obs), tf.expand_dims(next_action, -1), batch_dims=1)
 
+        discount_factor = 1.0 - self.discount_decay(
+            self.train_steps) if self.params.use_discount_decay else self.params.gamma
+        logs["discount_factor"] = discount_factor
         # Compute the target Q-value using the Bellman equation
-        target = reward + (1.0 - tf.cast(terminal, tf.float32)) * self.params.gamma * next_q
-
-        logs = {}
+        target = reward + (1.0 - tf.cast(terminal, tf.float32)) * discount_factor * next_q
 
         # Use a GradientTape to compute the loss and gradients
         with tf.GradientTape() as tape:
