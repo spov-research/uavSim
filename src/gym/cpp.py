@@ -228,7 +228,7 @@ class CPPGym(GridGym):
         })
         if self.params.inactivity_timeout:
             info["timeout"] = self.inactivity_steps >= self.params.timeout_steps
-        if collection_ratio == 1:
+        if self.task_solved():
             info["completion_steps"] = self.steps
         return info
 

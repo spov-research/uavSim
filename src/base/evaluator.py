@@ -5,7 +5,6 @@ import cv2
 import numpy as np
 import pygame
 from tqdm import tqdm
-import tensorflow as tf
 
 
 class PyGameHuman:

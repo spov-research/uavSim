@@ -1,3 +1,5 @@
+import argparse
+
 import pygame
 
 from src.gym import PathPlanningGymFactory
@@ -7,13 +9,15 @@ from src.base.evaluator import Evaluator, PyGameHuman
 from src.trainer.model import SoftmaxPolicy, QModelFactory
 
 from train import PathPlanningParams
-
+import pandas as pd
 
 def main():
-    params, args = PathPlanningParams.from_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--mc', default=0, help='evaluates monte carlo')
+    params, args = PathPlanningParams.from_args(parser)
     log_dir = args.config.rsplit('/', maxsplit=1)[0]
 
-    params.evaluator.show_eval = True
+    params.evaluator.show_eval = int(args.mc) == 0
     params.trainer.rm_prefill = 0
 
     gym = PathPlanningGymFactory.create(params.gym)
@@ -36,6 +40,16 @@ def main():
     evaluator = Evaluator(params.evaluator, trainer, gym, human)
 
     q_model.load_network(log_dir + "/models")
+
+    if int(args.mc) > 0:
+        q_model.load_weights(log_dir + "/models")
+        stats = evaluator.evaluate_multiple_episodes(int(args.mc))
+        df = pd.DataFrame(stats)
+        print("Mean:")
+        print(df.mean())
+        print("Std:")
+        print(df.std())
+        return
 
     while True:
         q_model.load_weights(log_dir + "/models")
