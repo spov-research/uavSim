@@ -38,6 +38,7 @@
             "empty_battery_penalty": 150.0,
             "completion_reward": 0.0,
             "movement_penalty": 0.2,
+            "reward_shaping": false,
             "recharge": true,
             "start_landed": true,
             "charge_amount": 2.0,

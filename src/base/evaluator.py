@@ -116,7 +116,7 @@ class EvaluatorParams:
 
 class Evaluator:
 
-    def __init__(self, params: EvaluatorParams, trainer, gym, human=None):
+    def __init__(self, params: EvaluatorParams, trainer, gym, human=None, heuristic=None):
         self.params = params
         self.trainer = trainer
         self.gym = gym.__class__(gym.params)
@@ -127,17 +127,18 @@ class Evaluator:
 
         self.human = human
         self.mode = "human"
+        self.use_heuristic = True
         self.stochastic = self.params.use_softmax
         self.recorder = None
+
+        self.heuristic = heuristic
+        if self.heuristic is not None:
+            self.heuristic.gym = self.gym
 
     def evaluate_episode(self):
         state, info = self.gym.reset()
         while not info["timeout"]:
-            obs = self.trainer.observation_function(state)
-            if self.params.use_softmax:
-                action = self.trainer.get_action(obs)
-            else:
-                action = self.trainer.q_model.get_max_action(obs)[0].numpy()
+            action = self.get_action(state)
             state, reward, terminal, truncated, info = self.gym.step(action)
             if terminal:
                 break
@@ -145,6 +146,16 @@ class Evaluator:
         if self.params.show_eval:
             self.gym.close()
         return info
+
+    def get_action(self, state):
+        obs = self.trainer.observation_function(state)
+        if self.use_heuristic:
+            return self.heuristic.get_action(state)
+        if self.stochastic:
+            action = self.trainer.get_action(obs)
+        else:
+            action = self.trainer.q_model.get_max_action(obs)[0].numpy()
+        return action
 
     def evaluate_multiple_episodes(self, n):
         stats = []
@@ -158,7 +169,6 @@ class Evaluator:
             return
         state, info = self.gym.reset()
         while not info["timeout"]:
-            obs = self.trainer.observation_function(state)
             action = self.handle_events()
             if self.recorder is not None:
                 frame = pygame.surfarray.pixels3d(self.gym.window)
@@ -167,10 +177,7 @@ class Evaluator:
                 self.recorder.write(frame)
                 del frame
             if action is None:
-                if self.stochastic:
-                    action = self.trainer.get_action(obs)
-                else:
-                    action = self.trainer.q_model.get_max_action(obs)[0].numpy()
+                action = self.get_action(state)
             state, reward, terminal, truncated, info = self.gym.step(action)
             if terminal:
                 break
@@ -183,10 +190,7 @@ class Evaluator:
             del frame
             self.recorder.release()
             self.recorder = None
-        if self.mode == "run_to_end":
-            self.mode = "human"
-            self.human.wait_key()
-        if self.mode == "blind":
+        if self.mode in ["blind", "run_to_end"]:
             self.mode = "human"
             self.gym.params.render = True
             self.gym.params.draw_trajectory = True
@@ -216,6 +220,9 @@ class Evaluator:
                     elif keys[pygame.K_u]:
                         self.mode = "blind"
                         self.gym.params.render = False
+                    elif keys[pygame.K_g]:
+                        self.use_heuristic = not self.use_heuristic
+                        print("Switched to Heuristic" if self.use_heuristic else "Switched to Agent")
                     elif keys[pygame.K_t]:
                         self.stochastic = not self.stochastic
                         print("Stochastic actions") if self.stochastic else print("Greedy actions")
@@ -229,6 +236,10 @@ class Evaluator:
                         record_fps = int(record_fps)
                         self.recorder = cv2.VideoWriter(record_to, cv2.VideoWriter_fourcc(*'mp4v'), record_fps,
                                                         self.gym.window.get_size())
+                    elif keys[pygame.K_k]:
+                        steps = input("Training steps: ")
+                        self.trainer.train_steps.assign(int(steps))
+                        self.gym.render()
 
                     action, terminate, kill = self.human.get_action_non_blocking(self.gym.position)
                     if kill:

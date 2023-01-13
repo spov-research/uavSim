@@ -2,6 +2,7 @@ import argparse
 
 import pygame
 
+from src.base.heuristics import GreedyHeuristic
 from src.gym import PathPlanningGymFactory
 from src.trainer.observation import ObservationFunctionFactory
 from src.trainer.ddqn import DDQNTrainer
@@ -32,12 +33,14 @@ def main():
     trainer = DDQNTrainer(params.trainer, gym, None, q_model, None, exploration_policy,
                           observation_function=observation_function)
 
+    heuristic = GreedyHeuristic(gym)
     human = PyGameHuman([(pygame.K_RIGHT, 0),
                          (pygame.K_DOWN, 1),
                          (pygame.K_LEFT, 2),
                          (pygame.K_UP, 3),
-                         (pygame.K_SPACE, 4)])
-    evaluator = Evaluator(params.evaluator, trainer, gym, human)
+                         (pygame.K_SPACE, 4),
+                         (pygame.K_m, 5)])
+    evaluator = Evaluator(params.evaluator, trainer, gym, human, heuristic=heuristic)
 
     q_model.load_network(log_dir + "/models")
 

@@ -489,3 +489,7 @@ class GridGym(gym.Env):
 
         # Return the points as a list of coordinates
         return [tip, base1, shaft_tip1, shaft_base1, shaft_base2, shaft_tip2, base2]
+
+    @property
+    def max_budget(self):
+        return self.params.budget_range[1]

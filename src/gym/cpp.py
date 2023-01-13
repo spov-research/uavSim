@@ -105,6 +105,7 @@ class CPPGym(GridGym):
     class Params(GridGym.Params):
         cell_reward: float = 0.4
         completion_reward: float = 0.0
+        reward_shaping: bool = False
         camera_half_length: int = 2
         generator: RandomTargetGenerator.Params = RandomTargetGenerator.Params()
         inactivity_timeout: bool = False
@@ -177,7 +178,13 @@ class CPPGym(GridGym):
 
         reward = self._get_rewards()
         cells_collected = cells_remaining - self.get_remaining_cells()
-        reward += cells_collected * self.params.cell_reward
+
+        if self.params.reward_shaping:
+            cell_rewards = 1 / np.arange(cells_remaining, cells_remaining + cells_collected) ** 0.5
+            reward += np.sum(cell_rewards) * self.params.cell_reward
+        else:
+            reward += cells_collected * self.params.cell_reward
+
         if self.task_solved():
             reward += self.params.completion_reward
         self.episodic_reward += reward
