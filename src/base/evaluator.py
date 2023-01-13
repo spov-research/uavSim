@@ -127,7 +127,7 @@ class Evaluator:
 
         self.human = human
         self.mode = "human"
-        self.use_heuristic = True
+        self.use_heuristic = False
         self.stochastic = self.params.use_softmax
         self.recorder = None
 
