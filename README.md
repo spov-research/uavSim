@@ -1,3 +1,13 @@
+This is a fork of the [original repository](https://github.com/DavidCastilloAlvarado/Path-planning-and-Reinforcement-Learning.git) under the project [Smart_POV](https://github.com/hamidrezafahimi/Smart_POV.git) which funds basics for intelligence development on simulated voyager agents. The original code is editted such that it simply interacts - and may be evaluated - with our developed professional (D)RL-evaluation platform [MIIO2V](https://github.com/mohammadr-kaz/MIIO2V.git). A comparison of this project with [other similar works]() id documented [here]().
+
+## How to run
+If you can't run the code in training mode, just write the following command in terminal (without "--gpu" tag):
+
+```
+python main.py --dh --config config/manhattan32_dh.json --id manhattan32_dh
+
+```
+
 ## Table of contents
 
 * [Introduction](#introduction)
